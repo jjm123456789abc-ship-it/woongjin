@@ -146,7 +146,10 @@ textarea.mono{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;l
 
   <!-- LEFT: 작업 목록 -->
   <div class="panel">
-    <h2>작업 목록</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h2 style="margin:0">작업 목록</h2>
+      <button class="btn" id="btnClearList" style="font-size:12px;padding:6px 11px">목록 비우기</button>
+    </div>
     <p class="desc">받은 일정표를 한 번만 넣으세요. 영상을 누르면 오른쪽에서 검수합니다.</p>
 
     <details class="imp">
@@ -469,9 +472,15 @@ function loadFromSheet(silent){
 }
 $('#btnLoadSheet').onclick=()=>loadFromSheet(false);
 
+/* 영상 목록 비우기 (초기화) */
+$('#btnClearList').onclick=()=>{
+  if(!work.length){alert('비울 목록이 없어요.');return}
+  if(!confirm('영상 목록 '+work.length+'개를 모두 지울까요?\n(이 컴퓨터의 목록만 지웁니다. 구글 시트에 보낸 기록은 그대로 남아요.)'))return;
+  work=[];sel=-1;save();render();renderWork();setSyncMsg('목록을 비웠어요. 새 일정표를 넣으면 됩니다.');
+};
+
 /* 시작 */
 load();$('#baseUrl').value=base;$('#price').value=price;$('#sheetUrl').value=sheetUrl;render();
-if(!work.length&&sheetUrl)loadFromSheet(true);
 </script>
 </body>
 </html>
