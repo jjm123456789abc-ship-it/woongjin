@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>웅진 자막 검수 올인원</title>
+<style>
+:root{
+  --paper:#f6f3ec; --card:#fff; --ink:#2b2722; --soft:#857c6e; --faint:#a9a092;
+  --line:#e7e0d4; --line2:#f0ebe1;
+  --green:#2f8f5b; --green-bg:#eaf5ee; --green-line:#bfe2cd;
+  --fix:#d2613f; --fix-bg:#fbeee8; --fix-line:#f1cdbd;
+  --check:#bd8420; --check-bg:#fbf3e1; --check-line:#eedcb4;
+  --blue:#3567b8; --blue-bg:#eaf0fa;
+  --r:18px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  background:var(--paper);color:var(--ink);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:78px}
+
+/* header */
+.head{background:#fffdf9;border-bottom:1px solid var(--line)}
+.head-in{max-width:1080px;margin:auto;padding:16px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.title{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.title small{display:block;font-size:12px;color:var(--faint);font-weight:600;margin-top:2px}
+.stats{display:flex;gap:22px;flex:1;flex-wrap:wrap}
+.stat .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.stat .v.money{color:var(--green)}
+.stat .l{font-size:11.5px;color:var(--soft);margin-top:3px}
+.bigbtn{border:none;background:var(--green);color:#fff;font-family:inherit;font-weight:800;font-size:15px;padding:13px 18px;border-radius:13px;cursor:pointer;white-space:nowrap}
+.bigbtn:active{transform:translateY(1px)}
+
+.wrap{max-width:1080px;margin:22px auto;padding:0 20px}
+.grid{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:0 2px 14px rgba(43,39,34,.05);padding:18px}
+.panel h2{font-size:15px;margin:0 0 4px;letter-spacing:-.01em}
+.panel .desc{color:var(--soft);font-size:13px;margin:0 0 14px}
+
+/* import */
+details.imp{border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:14px;background:#fffdf9}
+details.imp summary{cursor:pointer;font-weight:700;font-size:14px;list-style:none}
+details.imp summary::-webkit-details-marker{display:none}
+details.imp summary::before{content:"＋ ";color:var(--green);font-weight:800}
+details.imp[open] summary::before{content:"－ "}
+label{display:block;font-weight:700;font-size:12px;color:var(--soft);margin:12px 0 5px}
+textarea,input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--ink);background:#fff;outline:none}
+textarea:focus,input:focus{border-color:var(--green-line);box-shadow:0 0 0 3px var(--green-bg)}
+textarea.mono{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;line-height:1.5}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);font-family:inherit;font-weight:700;font-size:13px;padding:9px 14px;border-radius:10px;cursor:pointer}
+.btn:hover{background:#faf8f3}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.hint{font-size:12px;color:var(--faint);line-height:1.5;margin-top:7px}
+
+/* clip list */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:#fff;color:var(--soft);font-size:12px;font-weight:700;padding:5px 10px;border-radius:99px;cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.list{max-height:54vh;overflow:auto;border:1px solid var(--line);border-radius:13px}
+.item{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line2);cursor:pointer}
+.item:last-child{border-bottom:none}
+.item:hover{background:#faf8f3}
+.item.sel{background:var(--blue-bg)}
+.item .nm{flex:1;min-width:0;font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{font-size:11px;font-weight:800;padding:3px 8px;border-radius:99px;white-space:nowrap}
+.b-대기{background:#f1ece2;color:#9a8f7d}
+.b-완료{background:var(--green-bg);color:var(--green)}
+.b-보류{background:var(--check-bg);color:var(--check)}
+.b-기타오류{background:var(--fix-bg);color:var(--fix)}
+.empty{padding:34px 18px;text-align:center;color:var(--faint);font-size:13.5px}
+
+/* work panel */
+.pick{text-align:center;color:var(--faint);padding:50px 20px}
+.pick .e{font-size:34px}
+.curname{font-family:"SFMono-Regular",Consolas,monospace;font-size:15px;font-weight:700;background:#faf8f3;border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin-bottom:14px;word-break:break-all}
+.steps{display:flex;flex-direction:column;gap:14px}
+.step{border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.step .stt{font-size:13px;font-weight:800;color:var(--blue);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.step .stt .num{width:22px;height:22px;border-radius:99px;background:var(--blue);color:#fff;font-size:12px;display:grid;place-items:center}
+.linkline{display:flex;gap:8px;flex-wrap:wrap}
+.linkbtn{border:none;color:#fff;font-family:inherit;font-weight:800;font-size:14px;padding:11px 16px;border-radius:11px;cursor:pointer}
+.linkbtn.copy{background:var(--blue)}
+.linkbtn.open{background:var(--ink)}
+.urlprev{font-family:"SFMono-Regular",Consolas,monospace;font-size:11.5px;color:var(--faint);margin-top:8px;word-break:break-all}
+
+.box{width:100%;min-height:120px;resize:vertical;border:2px dashed var(--line);border-radius:13px;padding:14px;font-family:inherit;font-size:15px;line-height:1.6;background:#fff;outline:none}
+.box:focus{border-style:solid;border-color:var(--green-line);box-shadow:0 0 0 3px var(--green-bg)}
+.box::placeholder{color:var(--faint)}
+
+.results{margin-top:13px}
+.bh{font-size:13.5px;font-weight:800;margin:14px 0 9px;display:flex;align-items:center;gap:8px}
+.bh .dot{width:10px;height:10px;border-radius:99px}
+.bh .n{color:var(--faint);font-weight:600}
+.fcard{background:#fff;border:1px solid var(--line);border-left-width:5px;border-radius:12px;padding:12px 14px;margin-bottom:9px}
+.fcard.fix{border-left-color:var(--fix)}
+.fcard.chk{border-left-color:var(--check)}
+.swap{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:18px;font-weight:800}
+.wrong{color:var(--fix);text-decoration:line-through;text-decoration-color:var(--fix-line);text-decoration-thickness:2px}
+.arr{color:var(--faint)}
+.right{color:var(--green);background:var(--green-bg);border:1px solid var(--green-line);padding:2px 11px;border-radius:9px}
+.why{color:var(--soft);font-size:13.5px;margin-top:7px}
+.ctx{color:var(--faint);font-size:13px;margin-top:8px;background:#faf8f3;border-radius:9px;padding:8px 11px;overflow-wrap:anywhere}
+.ctx mark{background:#fce3d6;color:var(--fix);border-radius:4px;padding:0 3px;font-weight:700}
+.note .body{color:var(--check);font-weight:800;font-size:15px}
+.cleanmsg{background:var(--green-bg);border:1px solid var(--green-line);border-radius:12px;padding:14px;color:var(--green);font-weight:700;font-size:14.5px;line-height:1.6}
+.cleanmsg span{color:#5a7d68;font-weight:500;font-size:13px}
+
+.recbtns{display:flex;gap:9px;flex-wrap:wrap}
+.recbtn{flex:1;min-width:120px;border:none;font-family:inherit;font-weight:800;font-size:15px;padding:14px;border-radius:12px;cursor:pointer;color:#fff}
+.recbtn.done{background:var(--green)}
+.recbtn.hold{background:var(--check)}
+.recbtn.err{background:var(--fix)}
+.recbtn:active{transform:translateY(1px)}
+.recbtn small{display:block;font-weight:600;font-size:11px;opacity:.9;margin-top:4px}
+.guide{background:var(--blue-bg);border:1px solid #cfe0f5;border-radius:11px;padding:11px 13px;margin-bottom:14px;font-size:13px;font-weight:700;color:var(--blue);line-height:1.7}
+.curstatus{margin-top:10px;font-size:13px;color:var(--soft)}
+.curstatus b{color:var(--ink)}
+
+.footer{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:#f3eee5;font-size:14px;text-align:center;padding:12px 18px;line-height:1.5;z-index:30}
+.footer b{color:#ffd6a8}
+@media(max-width:520px){.title{font-size:16px}.stat .v{font-size:18px}.swap{font-size:16px}}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <div class="head-in">
+    <div class="title">웅진 자막 검수 올인원<small>링크 복사 → 검수 → 기록 → 제출용 엑셀</small></div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="sDone">0 / 0</div><div class="l">완료 / 전체</div></div>
+      <div class="stat"><div class="v money" id="sMoney">0원</div><div class="l">완료 정산</div></div>
+      <div class="stat"><div class="v" id="sHold">0</div><div class="l">보류·기타</div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="bigbtn" id="btnSync" style="background:var(--blue)">구글 시트로 보내기</button>
+      <button class="bigbtn" id="btnExcel" style="background:#6b7280">엑셀로 받기</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="grid">
+
+  <!-- LEFT: 작업 목록 -->
+  <div class="panel">
+    <h2>작업 목록</h2>
+    <p class="desc">받은 일정표를 한 번만 넣으세요. 영상을 누르면 오른쪽에서 검수합니다.</p>
+
+    <details class="imp">
+      <summary>일정표 넣기 / 설정</summary>
+      <label>① 엑셀에서 행을 복사해 붙여넣기 (가장 확실)</label>
+      <textarea class="mono" id="pasteBox" rows="3" placeholder="엑셀에서 데이터 행 드래그 → 복사 → 여기에 붙여넣기"></textarea>
+      <div class="row"><button class="btn pri" id="btnPaste">목록에 추가</button></div>
+      <label>② 또는 엑셀 파일 올리기</label>
+      <input type="file" id="xlsxFile" accept=".xlsx,.xls">
+      <label>HLS 기본 주소 (자동으로 링크 앞에 붙음)</label>
+      <input id="baseUrl" class="mono" value="http://hlsmedia.wjthinkbig.com">
+      <label>클립당 단가 (원)</label>
+      <input id="price" type="number" value="2500" step="100">
+
+      <label>구글 시트 주소 (자동 저장·공유용 · 선택)</label>
+      <input id="sheetUrl" class="mono" placeholder="https://script.google.com/macros/s/..../exec">
+      <div class="row" style="margin-top:6px"><button class="btn" id="btnLoadSheet">시트에서 불러오기 (다른 기기에서 이어하기)</button></div>
+      <div id="syncMsg" class="hint"></div>
+      <details class="imp" style="margin-top:8px">
+        <summary>구글 시트 연결 방법 (2분, 한 번만)</summary>
+        <ol style="margin:10px 0 0;padding-left:20px;font-size:13px;line-height:1.8;color:var(--soft)">
+          <li>새 구글 시트 만들기 (주소창에 <b>sheets.new</b>)</li>
+          <li>상단 메뉴 <b>확장 프로그램 → Apps Script</b></li>
+          <li>기존 코드 다 지우고, 제가 따로 드린 <b>연결 코드</b>를 붙여넣고 저장</li>
+          <li><b>배포 → 새 배포 → 유형: 웹 앱</b>, 액세스: <b>모든 사용자</b> → 배포 → 권한 허용</li>
+          <li>나온 <b>웹 앱 URL</b>을 복사해서 위 칸에 붙여넣기</li>
+        </ol>
+        <div class="hint">연결하면 완료/보류를 누를 때마다 시트에 자동으로 쌓입니다. 안 해도 ‘엑셀로 받기’로 쓸 수 있어요.</div>
+      </details>
+
+      <div class="hint">머리글 행은 자동으로 건너뜁니다. 입력 내용은 이 컴퓨터에 자동 저장됩니다.</div>
+    </details>
+
+    <div class="filters" id="filters"></div>
+    <div class="list" id="list"></div>
+  </div>
+
+  <!-- RIGHT: 검수 -->
+  <div class="panel" id="work">
+    <div class="pick"><div class="e">👈</div><div style="margin-top:10px;font-weight:700">왼쪽 목록에서 영상을 하나 고르세요</div></div>
+  </div>
+
+</div>
+</div>
+
+<div class="footer">✏️ 수정은 <b>웅진 사이트</b>에서 · 끝나면 꼭 <b>저장 → CDN Upload</b> → 여기서 <b>완료 처리</b></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const WJ_URL='https://wjtools.wjthinkbig.com/ai-srt2/index.html';
+
+/* 가이드 기준 확실한 오타 사전 */
+const SURE=[
+  {w:'무글 제국',r:'무굴 제국',why:'나라 이름이 틀렸어요'},
+  {w:'무를 제국',r:'무굴 제국',why:'나라 이름이 틀렸어요'},
+  {w:'신혜혁명',r:'신해혁명',why:'사건 이름이 틀렸어요'},
+  {w:'플라시전투',r:'플라시 전투',why:'띄어쓰기가 빠졌어요'},
+  {w:'판보이쪼우',r:'판보이쩌우',why:'사람 이름이 틀렸어요'},
+  {w:'판보이쪄우',r:'판보이쩌우',why:'사람 이름이 틀렸어요'},
+  {w:'동의운동',r:'동유 운동',why:'운동 이름이 틀렸어요'},
+  {w:'동의 운동',r:'동유 운동',why:'운동 이름이 틀렸어요'},
+  {w:'순원',r:'쑨원',why:'사람 이름이 틀렸어요'},
+  {w:'방짓기',r:'방적기',why:'기계 이름이 틀렸어요'},
+  {w:'방접기',r:'방적기',why:'기계 이름이 틀렸어요'},
+  {w:'영국역',r:'영국령',why:'명칭이 틀렸어요'},
+  {w:'세포의 항쟁',r:'세포이의 항쟁',why:'사건 이름이 틀렸어요'},
+  {w:'에스파니아',r:'에스파냐',why:'나라 이름이 틀렸어요'},
+  {w:'나누셈',r:'나눗셈',why:'용어가 틀렸어요'},
+  {w:'용수처',r:'용수철',why:'실험 도구 이름이 틀렸어요'},
+  {w:'용수체',r:'용수철',why:'실험 도구 이름이 틀렸어요'},
+  {w:'사회화와자아정체성',r:'사회화와 자아정체성',why:'띄어쓰기가 빠졌어요'},
+];
+
+let work=[], base='http://hlsmedia.wjthinkbig.com', price=2500, sheetUrl='', sel=-1, filt='전체';
+const STATUSES=['대기','완료','보류','기타오류'];
+
+/* 저장/불러오기 */
+function save(){localStorage.setItem('wj_work',JSON.stringify(work))}
+function load(){
+  try{work=JSON.parse(localStorage.getItem('wj_work')||'[]')}catch(e){work=[]}
+  base=localStorage.getItem('wj_base')||base;
+  price=Number(localStorage.getItem('wj_price')||2500);
+  sheetUrl=localStorage.getItem('wj_sheet')||'';
+}
+function esc(s){return String(s??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+function csv(s){const v=String(s??'').replace(/"/g,'""');return /[",\n\r]/.test(v)?`"${v}"`:v}
+function won(n){return Number(n||0).toLocaleString('ko-KR')+'원'}
+function fullUrl(it){const b=base.replace(/\/+$/,'');const p=it.path||'';if(!p&&!it.name)return '';const sep=p&&!p.startsWith('/')?'/':'';return b+sep+p+(it.name||'')}
+function seqOf(it){
+  const hay=(it.path||'')+'/'+(it.name||'');
+  let m=hay.match(/VOD[_-]?(\d{3,6})/i); if(m)return m[1];
+  m=(it.path||'').match(/\/(\d{2,6})\/[^/]*\/?$/); if(m)return m[1];
+  m=hay.match(/(\d{3,6})/); if(m)return m[1];
+  return it.seq||'';
+}
+function labelOf(it){
+  const s=seqOf(it); if(s)return 'VOD '+s;
+  if(/^(playlist|index|master|chunklist|prog_index)\.(m3u8|smil)$/i.test(it.name||'')){
+    const segs=(it.path||'').split('/').filter(Boolean);
+    if(segs.length)return segs.slice(-2).join('/')+'/'+it.name;
+  }
+  return it.name||((it.path||'').split('/').filter(Boolean).slice(-1)[0])||'(이름 없음)';
+}
+
+/* 일정표 가져오기 */
+function detect(cells){
+  cells=cells.map(c=>String(c).replace(/^"|"$/g,'').trim());
+  const j=cells.join(' ');
+  if(/FILE_NAME|FILE_PATH|CTTS_|REG_DTM|MOD_DTM/i.test(j))return null;
+  let name='',path='';
+  const u=j.match(/https?:\/\/\S+\.(?:smil|m3u8|srt|vtt)/i);
+  if(u){name=u[0].split('/').pop();path=u[0].slice(u[0].indexOf('/',8),u[0].lastIndexOf('/')+1)}
+  else{name=cells.find(c=>/\.(smil|m3u8|srt|vtt)$/i.test(c))||'';path=cells.find(c=>c.startsWith('/')&&c.endsWith('/'))||''}
+  if(!name)return null;
+  const vm=name.match(/(\d{3,6})/);
+  return {name,path,seq:vm?vm[1]:''};
+}
+function addRows(rows){
+  let n=0;
+  rows.forEach(c=>{const r=detect(c);if(!r)return;if(work.some(w=>w.name===r.name&&w.path===r.path))return;
+    work.push({name:r.name,path:r.path,seq:r.seq,status:'대기',reason:'',errors:''});n++});
+  save();render();autoSync();return n;
+}
+$('#btnPaste').onclick=()=>{
+  const raw=$('#pasteBox').value;if(!raw.trim()){alert('붙여넣은 내용이 없습니다.');return}
+  const rows=raw.replace(/\r/g,'').split('\n').filter(l=>l.trim()).map(l=>l.split('\t'));
+  const n=addRows(rows);$('#pasteBox').value='';
+  alert(n?`${n}개 영상을 추가했어요.`:'추가할 새 항목을 찾지 못했어요. (이미 있거나 형식이 달라요)');
+};
+$('#xlsxFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const run=()=>{const rd=new FileReader();rd.onload=ev=>{try{
+    const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false});
+    const n=addRows(rows.map(r=>r.map(c=>c==null?'':String(c))));
+    alert(n?`${n}개 영상을 추가했어요.`:'새 항목을 찾지 못했어요.');
+  }catch(err){alert('엑셀 읽기 실패: '+err.message)}};rd.readAsArrayBuffer(f)};
+  loadXLSX(run,()=>alert('엑셀 기능을 불러오지 못했어요. ①번 붙여넣기를 사용하세요.'));
+  e.target.value='';
+};
+function loadXLSX(ok,fail){if(window.XLSX){ok();return}
+  const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=ok;s.onerror=fail;document.head.appendChild(s)}
+
+$('#baseUrl').oninput=e=>{base=e.target.value;localStorage.setItem('wj_base',base);if(sel>=0)renderWork()};
+$('#price').oninput=e=>{price=Number(e.target.value||0);localStorage.setItem('wj_price',price);renderHead()};
+
+/* 목록 그리기 */
+function counts(){const c={전체:work.length,대기:0,완료:0,보류:0,기타오류:0};work.forEach(w=>c[w.status]++);return c}
+function renderHead(){
+  const c=counts();
+  $('#sDone').textContent=`${c.완료} / ${work.length}`;
+  $('#sMoney').textContent=won(c.완료*price);
+  $('#sHold').textContent=c.보류+c.기타오류;
+}
+function renderFilters(){
+  const c=counts();
+  $('#filters').innerHTML=['전체',...STATUSES].map(s=>`<button class="chip ${filt===s?'on':''}" data-f="${s}">${s} ${c[s]||0}</button>`).join('');
+  $('#filters').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{filt=b.dataset.f;render()});
+}
+function render(){
+  renderHead();renderFilters();
+  const list=$('#list');
+  const arr=work.map((w,i)=>({w,i})).filter(o=>filt==='전체'||o.w.status===filt);
+  if(!arr.length){list.innerHTML=`<div class="empty">${work.length?'해당 항목이 없어요.':'위 [일정표 넣기]에서 영상을 추가하세요.'}</div>`;}
+  else list.innerHTML=arr.map(({w,i})=>`<div class="item ${i===sel?'sel':''}" data-i="${i}">
+    <span class="nm" title="${esc(fullUrl(w)||w.name)}">${esc(labelOf(w))}</span>
+    <span class="badge b-${w.status}">${w.status}</span></div>`).join('');
+  list.querySelectorAll('.item').forEach(el=>el.onclick=()=>{sel=+el.dataset.i;render();renderWork()});
+  if(sel>=0)renderWork();
+}
+
+/* 검수 패널 */
+function renderWork(){
+  if(sel<0||!work[sel]){$('#work').innerHTML='<div class="pick"><div class="e">👈</div><div style="margin-top:10px;font-weight:700">왼쪽에서 영상을 고르세요</div></div>';return}
+  const w=work[sel], url=fullUrl(w);
+  $('#work').innerHTML=`
+    <h2>이 영상 검수하기</h2>
+    <div class="curname">${esc(labelOf(w))}</div>
+    <div class="guide">지금 할 일 &nbsp;①&nbsp;링크 복사 → 웅진에서 고치기 &nbsp;②&nbsp;웅진에서 저장+CDN Upload &nbsp;③&nbsp;여기서 완료 처리</div>
+    <div class="steps">
+
+      <div class="step">
+        <div class="stt"><span class="num">1</span>링크 복사 → 웅진 사이트 열기</div>
+        <div class="linkline">
+          <button class="linkbtn copy" id="copyBtn">링크 복사</button>
+          <button class="linkbtn open" id="openBtn">웅진 사이트 열기</button>
+        </div>
+        <div class="urlprev">${url?esc(url):'⚠️ 링크 정보가 없어요. [일정표 넣기]에서 기본 주소를 확인하세요.'}</div>
+      </div>
+
+      <div class="step">
+        <div class="stt"><span class="num">2</span>자막 붙여넣고 틀린 곳 확인</div>
+        <textarea class="box" id="box" placeholder="웅진 화면의 자막을 복사해서 여기에 붙여넣으세요. 바로 검사돼요."></textarea>
+        <div class="hint">아래 카드는 “여기를 고치세요”라는 <b>안내</b>예요. 실제 수정은 이 화면이 아니라 <b>웅진 사이트</b>에서 합니다.</div>
+        <div class="results" id="results"></div>
+      </div>
+
+      <div class="step">
+        <div class="stt"><span class="num">3</span>웅진에서 저장+CDN Upload 한 뒤 결과 기록</div>
+        <div class="recbtns">
+          <button class="recbtn done" id="doneBtn">완료 처리<small>웅진 저장+CDN Upload 끝났을 때</small></button>
+          <button class="recbtn hold" id="holdBtn">보류 처리<small>자막이 너무 엉망일 때</small></button>
+          <button class="recbtn err" id="errBtn">기타오류 기록<small>사이트·기능 문제일 때</small></button>
+        </div>
+        <div class="curstatus" id="curStatus"></div>
+      </div>
+
+    </div>`;
+  $('#copyBtn').onclick=async()=>{if(!url){alert('링크 정보가 없어요.');return}await navigator.clipboard.writeText(url);flash('#copyBtn','복사됨!')};
+  $('#openBtn').onclick=()=>window.open(WJ_URL,'_blank');
+  $('#box').addEventListener('input',()=>{clearTimeout(window._t);window._t=setTimeout(check,250)});
+  $('#doneBtn').onclick=()=>setStatus('완료','');
+  $('#holdBtn').onclick=()=>{const r=prompt('보류 사유를 적어주세요. (예: 다른 강의 자막이 섞임 / 80% 이상 수정 필요)',w.reason||'');if(r!==null)setStatus('보류',r)};
+  $('#errBtn').onclick=()=>{const r=prompt('기타오류 내용을 적어주세요. (예: 일괄적용 안 됨 / 자막 불러오기 실패)',w.reason||'');if(r!==null)setStatus('기타오류',r)};
+  check(); renderCurStatus();
+}
+function flash(sel,txt){const b=$(sel);const t=b.innerHTML;b.innerHTML=txt;setTimeout(()=>b.innerHTML=t,1100)}
+function setStatus(st,reason){work[sel].status=st;work[sel].reason=reason;save();render();renderCurStatus();autoSync();
+  const id={완료:'#doneBtn',보류:'#holdBtn',기타오류:'#errBtn'}[st];if($(id))flash(id,'✓ '+st)}
+function renderCurStatus(){const w=work[sel];const el=$('#curStatus');if(!el)return;
+  el.innerHTML=`현재 상태: <b>${w.status}</b>${w.reason?` · 사유: ${esc(w.reason)}`:''}${w.errors?` · 발견 오류 ${esc(w.errors)}개`:''}`}
+
+/* 자막 검사 */
+function markup(line,w){const e=esc(line);return w?e.split(esc(w)).join('<mark>'+esc(w)+'</mark>'):e}
+function check(){
+  const res=$('#results');if(!res)return;
+  const text=($('#box').value||'').replace(/\r/g,'');
+  if(!text.trim()){res.innerHTML='';if(work[sel])work[sel].errors='';return}
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l&&!/-->/.test(l)&&!/^\d+$/.test(l));
+  const fixes=[],checks=[];
+  lines.forEach(line=>{
+    SURE.forEach(d=>{if(line.includes(d.w))fixes.push({...d,line})});
+    if(/(^|[\s(])n([\s).,]|$)/.test(line))fixes.push({w:'n',r:'N',why:'단위는 소문자 n이 아니라 대문자 N이에요',line});
+    if(line.length>=60)checks.push({msg:`자막이 길어요 (${line.length}자). 두 줄로 나눠 주세요.`,line});
+    const f=line.match(/^(자|음|어|그니까|그러니까)\s*[,，]/);
+    if(f)checks.push({msg:`맨 앞 '${f[1]},' 는 빼도 돼요. (자연스러우면 그냥 두세요)`,line});
+  });
+  if(work[sel])work[sel].errors=String(fixes.length),save();
+  if(!fixes.length&&!checks.length){
+    res.innerHTML=`<div class="cleanmsg">👍 알려진 오타는 없어요.<br><span>회색(표시 없는) 자막에도 오타가 있을 수 있어요. 영상 2배속으로 한 번 더 확인하세요.</span></div>`;
+    renderCurStatus();return;
+  }
+  let h='';
+  if(fixes.length){h+=`<div class="bh"><span class="dot" style="background:var(--fix)"></span>꼭 고치세요 <span class="n">${fixes.length}곳</span></div>`;
+    fixes.forEach(f=>h+=`<div class="fcard fix"><div class="swap"><span class="wrong">${esc(f.w)}</span><span class="arr">→</span><span class="right">${esc(f.r)}</span></div><div class="why">${esc(f.why)}</div><div class="ctx">${markup(f.line,f.w)}</div></div>`)}
+  if(checks.length){h+=`<div class="bh"><span class="dot" style="background:var(--check)"></span>한 번 더 확인 <span class="n">${checks.length}곳 · 급하지 않아요</span></div>`;
+    checks.forEach(c=>h+=`<div class="fcard chk"><div class="note"><span class="body">${esc(c.msg)}</span></div><div class="ctx">${esc(c.line)}</div></div>`)}
+  res.innerHTML=h; renderCurStatus();
+}
+
+/* 제출용 데이터 만들기 (엑셀·시트 공용) */
+function buildData(){
+  const now=new Date().toLocaleString('ko-KR');
+  const sched=[['번호','클립','VOD','상태','발견오류','사유/메모','링크','갱신'],
+    ...work.map((w,i)=>[i+1,labelOf(w),seqOf(w),w.status,w.errors,w.reason,fullUrl(w),now])];
+  const errs=[['클립','VOD','상태','사유 / 내용','링크'],
+    ...work.filter(w=>w.status==='보류'||w.status==='기타오류'||w.reason).map(w=>[labelOf(w),seqOf(w),w.status,w.reason,fullUrl(w)])];
+  if(errs.length===1)errs.push(['(보류·기타오류 항목 없음)','','','','']);
+  const done=work.filter(w=>w.status==='완료');
+  const settle=[['항목','값'],['완료 클립 수',done.length],['클립당 단가',price],['정산 금액(완료×단가)',done.length*price],
+    ['',''],['번호','완료 클립','VOD'],...done.map((w,i)=>[i+1,labelOf(w),seqOf(w)])];
+  return {sched,errs,settle,done};
+}
+
+/* 엑셀로 받기 */
+$('#btnExcel').onclick=()=>{
+  if(!work.length){alert('먼저 일정표를 넣어주세요.');return}
+  const {sched,errs,settle,done}=buildData();
+  const fn='웅진_자막검수_제출_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  loadXLSX(()=>{
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sched),'검수일정표');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(errs),'오류목록');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(settle),'정산표');
+    XLSX.writeFile(wb,fn);
+    alert(`엑셀을 만들었어요.\n완료 ${done.length}개 · 정산 ${won(done.length*price)}`);
+  },()=>{
+    const d=(name,rows)=>{const b=new Blob(['\ufeff'+rows.map(r=>r.map(csv).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)};
+    d('검수일정표.csv',sched);d('오류목록.csv',errs);d('정산표.csv',settle);
+    alert('인터넷이 없어 엑셀 대신 CSV 3개로 저장했어요. (엑셀에서 바로 열립니다)');
+  });
+};
+
+/* 구글 시트로 보내기 */
+function setSyncMsg(m,ok){const e=$('#syncMsg');if(e){e.textContent=m;e.style.color=ok===false?'var(--fix)':ok?'var(--green)':'var(--soft)'}}
+function syncToSheet(silent){
+  if(!sheetUrl){if(!silent)alert('먼저 설정에서 구글 시트 주소를 연결하세요.');return}
+  if(!work.length){if(!silent)alert('보낼 작업이 없어요.');return}
+  const {sched,errs,settle}=buildData();
+  if(!silent)setSyncMsg('보내는 중...');
+  fetch(sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({schedule:sched,errors:errs,settle:settle,raw:work})})
+    .then(()=>setSyncMsg('✓ 시트로 보냈어요 · '+new Date().toLocaleTimeString('ko-KR')+' (시트에서 확인)',true))
+    .catch(()=>setSyncMsg('전송 시도함 — 시트가 안 채워지면 주소를 다시 확인하세요',false));
+}
+let _syncT;
+function autoSync(){if(!sheetUrl)return;clearTimeout(_syncT);_syncT=setTimeout(()=>syncToSheet(true),1500)}
+$('#btnSync').onclick=()=>syncToSheet(false);
+$('#sheetUrl').oninput=e=>{sheetUrl=e.target.value.trim();localStorage.setItem('wj_sheet',sheetUrl)};
+
+/* 구글 시트에서 불러오기 (다른 기기에서 이어하기) */
+function loadFromSheet(silent){
+  if(!sheetUrl){if(!silent)alert('먼저 구글 시트 주소를 연결하세요.');return}
+  const cb='wjcb_'+Date.now();
+  const s=document.createElement('script');
+  const done=ok=>{try{delete window[cb]}catch(e){}s.remove()};
+  window[cb]=data=>{
+    try{
+      const raw=data&&data.raw?JSON.parse(data.raw):[];
+      if(raw&&raw.length){work=raw;save();sel=-1;render();setSyncMsg('✓ 시트에서 '+work.length+'개 불러왔어요',true)}
+      else setSyncMsg('시트에 저장된 작업이 아직 없어요',!silent?false:undefined);
+    }catch(e){setSyncMsg('불러오기 실패: '+e,false)}
+    done();
+  };
+  s.onerror=()=>{setSyncMsg('불러오기 연결 실패 — 시트 주소/배포를 확인하세요',false);done()};
+  const sep=sheetUrl.indexOf('?')>=0?'&':'?';
+  s.src=sheetUrl+sep+'callback='+cb+'&t='+Date.now();
+  if(!silent)setSyncMsg('불러오는 중...');
+  document.body.appendChild(s);
+}
+$('#btnLoadSheet').onclick=()=>loadFromSheet(false);
+
+/* 시작 */
+load();$('#baseUrl').value=base;$('#price').value=price;$('#sheetUrl').value=sheetUrl;render();
+if(!work.length&&sheetUrl)loadFromSheet(true);
+</script>
+</body>
+</html>
