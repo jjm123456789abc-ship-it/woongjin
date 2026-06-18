@@ -161,6 +161,8 @@ textarea.mono{font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;l
       <input type="file" id="xlsxFile" accept=".xlsx,.xls">
       <label>HLS 기본 주소 (자동으로 링크 앞에 붙음)</label>
       <input id="baseUrl" class="mono" value="http://hlsmedia.wjthinkbig.com">
+      <label>작성자 (검수자 이름 · 오류목록에 들어감)</label>
+      <input id="author" placeholder="예: 박예준">
       <label>클립당 단가 (원)</label>
       <input id="price" type="number" value="2500" step="100">
 
@@ -222,35 +224,46 @@ const SURE=[
   {w:'용수체',r:'용수철',why:'실험 도구 이름이 틀렸어요'},
   {w:'사회화와자아정체성',r:'사회화와 자아정체성',why:'띄어쓰기가 빠졌어요'},
 ];
+function refList(){
+  const g={};SURE.forEach(d=>{(g[d.r]=g[d.r]||[]).push(d.w)});
+  return Object.keys(g).map(r=>
+    `<div style="display:flex;gap:8px;align-items:baseline;padding:5px 2px;border-bottom:1px solid var(--line)">
+       <span style="flex:1;color:var(--fix);text-decoration:line-through;font-size:13px">${g[r].map(esc).join(', ')}</span>
+       <span style="color:var(--soft)">→</span>
+       <span style="flex:1;font-weight:600;font-size:14px">${esc(r)}</span>
+     </div>`).join('');
+}
 
-let work=[], base='http://hlsmedia.wjthinkbig.com', price=2500, sheetUrl='', sel=-1, filt='전체';
+let work=[], src=null, base='http://hlsmedia.wjthinkbig.com', price=2500, sheetUrl='', author='', sel=-1, filt='전체';
 const STATUSES=['대기','완료','보류','기타오류'];
 
 /* 저장/불러오기 */
-function save(){localStorage.setItem('wj_work',JSON.stringify(work))}
+function save(){localStorage.setItem('wj_work',JSON.stringify(work));try{localStorage.setItem('wj_src',src?JSON.stringify(src):'')}catch(e){}}
 function load(){
   try{work=JSON.parse(localStorage.getItem('wj_work')||'[]')}catch(e){work=[]}
+  try{src=JSON.parse(localStorage.getItem('wj_src')||'null')}catch(e){src=null}
   base=localStorage.getItem('wj_base')||base;
   price=Number(localStorage.getItem('wj_price')||2500);
+  author=localStorage.getItem('wj_author')||'';
   sheetUrl=localStorage.getItem('wj_sheet')||'';
 }
 function esc(s){return String(s??'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
 function csv(s){const v=String(s??'').replace(/"/g,'""');return /[",\n\r]/.test(v)?`"${v}"`:v}
 function won(n){return Number(n||0).toLocaleString('ko-KR')+'원'}
-function fullUrl(it){const b=base.replace(/\/+$/,'');const p=it.path||'';if(!p&&!it.name)return '';const sep=p&&!p.startsWith('/')?'/':'';return b+sep+p+(it.name||'')}
+function fullUrl(it){
+  if(it.url)return it.url;
+  const b=base.replace(/\/+$/,'');const p=it.path||'';if(!p&&!it.name)return '';const sep=p&&!p.startsWith('/')?'/':'';return b+sep+p+(it.name||'');
+}
 function seqOf(it){
-  const hay=(it.path||'')+'/'+(it.name||'');
+  if(it.seq)return String(it.seq);
+  const hay=(it.path||'')+'/'+(it.name||'')+'/'+(it.url||'');
   let m=hay.match(/VOD[_-]?(\d{3,6})/i); if(m)return m[1];
-  m=(it.path||'').match(/\/(\d{2,6})\/[^/]*\/?$/); if(m)return m[1];
   m=hay.match(/(\d{3,6})/); if(m)return m[1];
-  return it.seq||'';
+  return '';
 }
 function labelOf(it){
-  const s=seqOf(it); if(s)return 'VOD '+s;
-  if(/^(playlist|index|master|chunklist|prog_index)\.(m3u8|smil)$/i.test(it.name||'')){
-    const segs=(it.path||'').split('/').filter(Boolean);
-    if(segs.length)return segs.slice(-2).join('/')+'/'+it.name;
-  }
+  const s=seqOf(it);
+  if(s)return (it.subj?it.subj+' · ':'')+'VOD '+s;
   return it.name||((it.path||'').split('/').filter(Boolean).slice(-1)[0])||'(이름 없음)';
 }
 
@@ -258,36 +271,73 @@ function labelOf(it){
 function detect(cells){
   cells=cells.map(c=>String(c).replace(/^"|"$/g,'').trim());
   const j=cells.join(' ');
-  if(/FILE_NAME|FILE_PATH|CTTS_|REG_DTM|MOD_DTM/i.test(j))return null;
-  let name='',path='';
-  const u=j.match(/https?:\/\/\S+\.(?:smil|m3u8|srt|vtt)/i);
-  if(u){name=u[0].split('/').pop();path=u[0].slice(u[0].indexOf('/',8),u[0].lastIndexOf('/')+1)}
+  let name='',path='',url='';
+  const u=j.match(/https?:\/\/\S+\.(?:smil|m3u8|srt|vtt)\S*/i);
+  if(u){url=u[0];name=u[0].split('/').pop();path=u[0].slice(u[0].indexOf('/',8),u[0].lastIndexOf('/')+1)}
   else{name=cells.find(c=>/\.(smil|m3u8|srt|vtt)$/i.test(c))||'';path=cells.find(c=>c.startsWith('/')&&c.endsWith('/'))||''}
-  if(!name)return null;
-  const vm=name.match(/(\d{3,6})/);
-  return {name,path,seq:vm?vm[1]:''};
+  if(!name&&!url)return null;
+  const sm=(url||j).match(/VOD[_-]?(\d{3,6})/i)||name.match(/(\d{3,6})/);
+  return {name,path,url,seq:sm?sm[1]:''};
 }
 function addRows(rows){
   let n=0;
-  rows.forEach(c=>{const r=detect(c);if(!r)return;if(work.some(w=>w.name===r.name&&w.path===r.path))return;
-    work.push({name:r.name,path:r.path,seq:r.seq,status:'대기',reason:'',errors:''});n++});
+  rows.forEach(c=>{const r=detect(c);if(!r)return;
+    if(work.some(w=>(r.url&&w.url===r.url)||(r.seq&&w.seq===r.seq)))return;
+    work.push({name:r.name,path:r.path,url:r.url,seq:r.seq,subj:'',status:'대기',reason:'',errors:'',doneAt:''});n++});
   save();render();autoSync();return n;
 }
 $('#btnPaste').onclick=()=>{
   const raw=$('#pasteBox').value;if(!raw.trim()){alert('붙여넣은 내용이 없습니다.');return}
   const rows=raw.replace(/\r/g,'').split('\n').filter(l=>l.trim()).map(l=>l.split('\t'));
   const n=addRows(rows);$('#pasteBox').value='';
-  alert(n?`${n}개 영상을 추가했어요.`:'추가할 새 항목을 찾지 못했어요. (이미 있거나 형식이 달라요)');
+  alert(n?`${n}개 영상을 추가했어요.`:'추가할 새 항목을 찾지 못했어요.');
 };
+
+/* 웅진 엑셀 그대로 읽기 (검수 완료 날짜 칸을 채워 되돌려줄 수 있게 원본 보존) */
+function colIdx(header,re){return header.findIndex(c=>re.test(String(c)))}
+function pickSheet(wb){
+  for(const nm of wb.SheetNames){
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:false,defval:''});
+    for(let i=0;i<Math.min(6,aoa.length);i++) if(aoa[i].some(c=>/영상\s*링크/.test(String(c)))) return {name:nm,aoa,hdr:i};
+  }
+  const nm=wb.SheetNames[0];
+  return {name:nm,aoa:XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,raw:false,defval:''}),hdr:0};
+}
+function importWorkbook(wb){
+  const {name,aoa,hdr}=pickSheet(wb);
+  if(!aoa[hdr]){alert('빈 파일이에요.');return 0}
+  const header=aoa[hdr].map(c=>String(c));
+  let idxLink=colIdx(header,/영상\s*링크/); if(idxLink<0)idxLink=colIdx(header,/링크|m3u8|smil/i);
+  if(idxLink<0){alert('이 파일에서 "영상 링크" 칸을 못 찾았어요. 다른 시트인지 확인해 주세요.');return 0}
+  let idxSeq=colIdx(header,/^CTTS_SEQ$/i); if(idxSeq<0)idxSeq=colIdx(header,/CTTS_SEQ/i); if(idxSeq<0)idxSeq=colIdx(header,/CTTS_DTL_SEQ/i);
+  let idxDone=colIdx(header,/검수\s*완료\s*날짜|검수완료/);
+  if(idxDone<0){idxDone=header.length;header.push('검수 완료 날짜');}
+  const idxSubj=colIdx(header,/과목/),idxGrade=colIdx(header,/학년/),idxCourse=colIdx(header,/강좌명/),idxPeriod=colIdx(header,/요청\s*기간|작업\s*기간/);
+  const rows=[],items=[];
+  for(let r=hdr+1;r<aoa.length;r++){
+    const row=aoa[r].slice();
+    const link=String(row[idxLink]||'');
+    if(!/https?:\/\//.test(link))continue;
+    const ri=rows.length;rows.push(row);
+    let seq=(idxSeq>=0?String(row[idxSeq]||''):'');
+    if(!seq){const m=link.match(/VOD[_-]?(\d{3,6})/i);seq=m?m[1]:''}
+    items.push({seq,url:link,subj:idxSubj>=0?String(row[idxSubj]||''):'',grade:idxGrade>=0?String(row[idxGrade]||''):'',course:idxCourse>=0?String(row[idxCourse]||''):'',period:idxPeriod>=0?String(row[idxPeriod]||''):'',status:'대기',reason:'',errors:'',doneAt:'',row:ri});
+  }
+  if(!items.length){alert('영상 링크가 있는 줄을 못 찾았어요.');return 0}
+  const prev={};work.forEach(w=>{if(w.seq)prev[w.seq]=w});
+  items.forEach(it=>{const p=prev[it.seq];if(p){it.status=p.status;it.reason=p.reason;it.errors=p.errors;it.doneAt=p.doneAt||''}});
+  work=items;
+  src={name,header,rows,idxLink,idxSeq,idxDone,idxSubj,idxGrade,idxCourse,idxPeriod};
+  sel=-1;save();render();return items.length;
+}
 $('#xlsxFile').onchange=e=>{
   const f=e.target.files[0];if(!f)return;
   const run=()=>{const rd=new FileReader();rd.onload=ev=>{try{
     const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false});
-    const n=addRows(rows.map(r=>r.map(c=>c==null?'':String(c))));
-    alert(n?`${n}개 영상을 추가했어요.`:'새 항목을 찾지 못했어요.');
+    const n=importWorkbook(wb);
+    if(n)alert(n+'개 영상을 불러왔어요.\n검수 완료 날짜는 완료 처리할 때 자동으로 채워집니다.');
   }catch(err){alert('엑셀 읽기 실패: '+err.message)}};rd.readAsArrayBuffer(f)};
-  loadXLSX(run,()=>alert('엑셀 기능을 불러오지 못했어요. ①번 붙여넣기를 사용하세요.'));
+  loadXLSX(run,()=>alert('엑셀 기능을 불러오지 못했어요.'));
   e.target.value='';
 };
 function loadXLSX(ok,fail){if(window.XLSX){ok();return}
@@ -295,6 +345,7 @@ function loadXLSX(ok,fail){if(window.XLSX){ok();return}
 
 $('#baseUrl').oninput=e=>{base=e.target.value;localStorage.setItem('wj_base',base);if(sel>=0)renderWork()};
 $('#price').oninput=e=>{price=Number(e.target.value||0);localStorage.setItem('wj_price',price);renderHead()};
+$('#author').oninput=e=>{author=e.target.value;localStorage.setItem('wj_author',author)};
 
 /* 목록 그리기 */
 function counts(){const c={전체:work.length,대기:0,완료:0,보류:0,기타오류:0};work.forEach(w=>c[w.status]++);return c}
@@ -340,12 +391,12 @@ function renderWork(){
         <div class="urlprev">${url?esc(url):'⚠️ 링크 정보가 없어요. [일정표 넣기]에서 기본 주소를 확인하세요.'}</div>
       </div>
 
-      <div class="step">
-        <div class="stt"><span class="num">2</span>자막 붙여넣고 틀린 곳 확인</div>
-        <textarea class="box" id="box" placeholder="웅진 화면의 자막을 복사해서 여기에 붙여넣으세요. 바로 검사돼요."></textarea>
-        <div class="hint">아래 카드는 “여기를 고치세요”라는 <b>안내</b>예요. 실제 수정은 이 화면이 아니라 <b>웅진 사이트</b>에서 합니다.</div>
-        <div class="results" id="results"></div>
-      </div>
+      <details class="step" id="refStep">
+        <summary class="stt" style="cursor:pointer;list-style:none"><span class="num">2</span>자주 틀리는 것 모음 (눈으로만 참고 · 붙여넣기 필요 없음)</summary>
+        <div class="hint" style="margin-top:6px">웅진 화면에서 작업하면서 아래 목록을 곁눈질로 확인하세요. 표시 없는(회색) 자막에도 오타가 있을 수 있으니 2배속으로 끝까지 보는 게 핵심이에요.</div>
+        <div style="margin-top:8px">${refList()}</div>
+        <div class="hint" style="margin-top:8px">· 한 줄이 너무 길면(60자↑) 두 줄로 나누기 · 맨 앞 “자/음/어/그니까,” 같은 군말은 빼기</div>
+      </details>
 
       <div class="step">
         <div class="stt"><span class="num">3</span>웅진에서 저장+CDN Upload 한 뒤 결과 기록</div>
@@ -360,14 +411,13 @@ function renderWork(){
     </div>`;
   $('#copyBtn').onclick=async()=>{if(!url){alert('링크 정보가 없어요.');return}await navigator.clipboard.writeText(url);flash('#copyBtn','복사됨!')};
   $('#openBtn').onclick=()=>window.open(WJ_URL,'_blank');
-  $('#box').addEventListener('input',()=>{clearTimeout(window._t);window._t=setTimeout(check,250)});
   $('#doneBtn').onclick=()=>setStatus('완료','');
   $('#holdBtn').onclick=()=>{const r=prompt('보류 사유를 적어주세요. (예: 다른 강의 자막이 섞임 / 80% 이상 수정 필요)',w.reason||'');if(r!==null)setStatus('보류',r)};
   $('#errBtn').onclick=()=>{const r=prompt('기타오류 내용을 적어주세요. (예: 일괄적용 안 됨 / 자막 불러오기 실패)',w.reason||'');if(r!==null)setStatus('기타오류',r)};
-  check(); renderCurStatus();
+  renderCurStatus();
 }
 function flash(sel,txt){const b=$(sel);const t=b.innerHTML;b.innerHTML=txt;setTimeout(()=>b.innerHTML=t,1100)}
-function setStatus(st,reason){work[sel].status=st;work[sel].reason=reason;save();render();renderCurStatus();autoSync();
+function setStatus(st,reason){const w=work[sel];w.status=st;w.reason=reason;if(st==='완료'){if(!w.doneAt)w.doneAt=new Date().toISOString().slice(0,10)}else{w.doneAt=''}save();render();renderCurStatus();autoSync();
   const id={완료:'#doneBtn',보류:'#holdBtn',기타오류:'#errBtn'}[st];if($(id))flash(id,'✓ '+st)}
 function renderCurStatus(){const w=work[sel];const el=$('#curStatus');if(!el)return;
   el.innerHTML=`현재 상태: <b>${w.status}</b>${w.reason?` · 사유: ${esc(w.reason)}`:''}${w.errors?` · 발견 오류 ${esc(w.errors)}개`:''}`}
@@ -403,33 +453,67 @@ function check(){
 /* 제출용 데이터 만들기 (엑셀·시트 공용) */
 function buildData(){
   const now=new Date().toLocaleString('ko-KR');
-  const sched=[['번호','클립','VOD','상태','발견오류','사유/메모','링크','갱신'],
-    ...work.map((w,i)=>[i+1,labelOf(w),seqOf(w),w.status,w.errors,w.reason,fullUrl(w),now])];
+  const sched=[['번호','클립','VOD','상태','검수완료날짜','사유/메모','링크','갱신'],
+    ...work.map((w,i)=>[i+1,labelOf(w),seqOf(w),w.status,w.doneAt||'',w.reason,fullUrl(w),now])];
   const errs=[['클립','VOD','상태','사유 / 내용','링크'],
     ...work.filter(w=>w.status==='보류'||w.status==='기타오류'||w.reason).map(w=>[labelOf(w),seqOf(w),w.status,w.reason,fullUrl(w)])];
   if(errs.length===1)errs.push(['(보류·기타오류 항목 없음)','','','','']);
   const done=work.filter(w=>w.status==='완료');
-  const settle=[['항목','값'],['완료 클립 수',done.length],['클립당 단가',price],['정산 금액(완료×단가)',done.length*price],
-    ['',''],['번호','완료 클립','VOD'],...done.map((w,i)=>[i+1,labelOf(w),seqOf(w)])];
+  const settle=[['항목','값'],['완료 클립 수',done.length],['클립당 단가',price],['정산 금액(완료×단가)',done.length*price]];
   return {sched,errs,settle,done};
 }
 
-/* 엑셀로 받기 */
+/* 제출용: 웅진 원본 형식 그대로 + 검수 완료 날짜 채우기 */
+function buildErrSheet(){
+  const today=new Date().toISOString().slice(0,10);
+  const head=['과목','강좌명','영상 링크','작성자','검수일','상세 내용'];
+  const rows=work.filter(w=>w.status==='보류'||w.status==='기타오류'||(w.reason&&w.reason.trim()))
+    .map(w=>[w.subj||'',w.course||'',fullUrl(w),author||'',w.doneAt||today,(w.status==='보류'?'[보류] ':w.status==='기타오류'?'[기타오류] ':'')+(w.reason||'')]);
+  return [head,...rows];
+}
+function buildSubmit(){
+  const done=work.filter(w=>w.status==='완료');
+  const today=new Date().toISOString().slice(0,10);
+  if(src){
+    const header=src.header.slice();
+    const sCol=header.length, mCol=header.length+1;
+    header.push('검수 상태'); header.push('비고');
+    const byRow={}; work.forEach(w=>{if(typeof w.row==='number')byRow[w.row]=w});
+    const out=[header];
+    src.rows.forEach((row,i)=>{
+      const r=row.slice(); while(r.length<header.length)r.push('');
+      const w=byRow[i];
+      if(w){
+        r[src.idxDone]=(w.status==='완료')?(w.doneAt||today):(r[src.idxDone]||'');
+        r[sCol]=w.status; r[mCol]=w.reason||'';
+      }
+      out.push(r);
+    });
+    return {main:out, name:(src.name||'강의영상링크').slice(0,31), done};
+  }
+  const sched=[['번호','클립','VOD','상태','검수완료날짜','메모','링크'],
+    ...work.map((w,i)=>[i+1,labelOf(w),seqOf(w),w.status,w.doneAt||'',w.reason,fullUrl(w)])];
+  return {main:sched, name:'검수목록', done};
+}
+
+/* 엑셀로 받기 (제출용: 일정표 + 오류목록 + 정산) */
 $('#btnExcel').onclick=()=>{
-  if(!work.length){alert('먼저 일정표를 넣어주세요.');return}
-  const {sched,errs,settle,done}=buildData();
-  const fn='웅진_자막검수_제출_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  if(!work.length){alert('먼저 일정표(엑셀)를 넣어주세요.');return}
+  const {main,name,done}=buildSubmit();
+  const errSheet=buildErrSheet();
+  const settle=[['항목','값'],['완료 클립 수',done.length],['클립당 단가',price],['정산 금액(완료×단가)',done.length*price]];
+  const fn='자막_검수_제출_'+new Date().toISOString().slice(0,10)+'.xlsx';
   loadXLSX(()=>{
     const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sched),'검수일정표');
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(errs),'오류목록');
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(settle),'정산표');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(main),name);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(errSheet),'오류목록');
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(settle),'정산');
     XLSX.writeFile(wb,fn);
-    alert(`엑셀을 만들었어요.\n완료 ${done.length}개 · 정산 ${won(done.length*price)}`);
+    alert('제출용 엑셀을 만들었어요.\n· 일정표: 검수 완료 날짜 자동 채움\n· 오류목록: 보류·오류 '+(errSheet.length-1)+'건 자동 정리\n· 완료 '+done.length+'개 · 정산 '+won(done.length*price));
   },()=>{
-    const d=(name,rows)=>{const b=new Blob(['\ufeff'+rows.map(r=>r.map(csv).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)};
-    d('검수일정표.csv',sched);d('오류목록.csv',errs);d('정산표.csv',settle);
-    alert('인터넷이 없어 엑셀 대신 CSV 3개로 저장했어요. (엑셀에서 바로 열립니다)');
+    const b=new Blob(['\ufeff'+main.map(r=>r.map(csv).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='자막_검수_제출.csv';a.click();URL.revokeObjectURL(a.href);
+    alert('인터넷이 없어 CSV로 저장했어요. (엑셀에서 바로 열립니다)');
   });
 };
 
@@ -480,7 +564,7 @@ $('#btnClearList').onclick=()=>{
 };
 
 /* 시작 */
-load();$('#baseUrl').value=base;$('#price').value=price;$('#sheetUrl').value=sheetUrl;render();
+load();$('#baseUrl').value=base;$('#price').value=price;$('#author').value=author;$('#sheetUrl').value=sheetUrl;render();
 </script>
 </body>
 </html>
